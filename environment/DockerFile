@@ -2,12 +2,12 @@ FROM node:14-alpine
 
 WORKDIR /app
 
-COPY package.json ./
+COPY repo/package.json ./
 
-RUN npm install
+RUN npm install --registry=https://registry.npmmirror.com
 
-COPY . .
+COPY repo/ .
 
-EXPOSE 3000
+EXPOSE 8080
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]
