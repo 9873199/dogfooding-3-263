@@ -53,11 +53,25 @@ export const loadMore = (element, callback) => {
 	let marginBottom;
     let requestFram;
     let oldScrollTop;
+    let isLoading = false;
+
+    const checkLoadMore = () => {
+        if (height === undefined) return;
+        if (document.body.scrollTop + windowHeight >= height + setTop + paddingBottom + marginBottom) {
+            if (!isLoading) {
+                isLoading = true;
+                callback();
+                setTimeout(() => {
+                    isLoading = false;
+                }, 100);
+            }
+        }
+    }
 
     document.body.addEventListener('scroll',() => {
-       loadMore();
+       checkLoadMore();
     }, false)
-    //运动开始时获取元素 高度 和 offseTop, pading, margin
+
 	element.addEventListener('touchstart',() => {
         height = element.offsetHeight;
         setTop = element.offsetTop;
@@ -65,12 +79,10 @@ export const loadMore = (element, callback) => {
         marginBottom = getStyle(element,'marginBottom');
     },{passive: true})
 
-    //运动过程中保持监听 scrollTop 的值判断是否到达底部
     element.addEventListener('touchmove',() => {
-       loadMore();
+       checkLoadMore();
     },{passive: true})
 
-    //运动结束时判断是否有惯性运动，惯性运动结束判断是非到达底部
     element.addEventListener('touchend',() => {
        	oldScrollTop = document.body.scrollTop;
        	moveEnd();
@@ -80,21 +92,14 @@ export const loadMore = (element, callback) => {
         requestFram = requestAnimationFrame(() => {
             if (document.body.scrollTop != oldScrollTop) {
                 oldScrollTop = document.body.scrollTop;
-                loadMore();
+                checkLoadMore();
                 moveEnd();
             }else{
             	cancelAnimationFrame(requestFram);
-            	//为了防止鼠标抬起时已经渲染好数据从而导致重获取数据，应该重新获取dom高度
             	height = element.offsetHeight;
-                loadMore();
+                checkLoadMore();
             }
         })
-    }
-
-    const loadMore = () => {
-        if (document.body.scrollTop + windowHeight >= height + setTop + paddingBottom + marginBottom) {
-            callback();
-        }
     }
 }
 
@@ -204,15 +209,15 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
     });
 
 
-    let flag = true; //假设所有运动到达终点
-    const remberSpeed = {};//记录上一个速度值,在ease-in模式下需要用到
+    const remberSpeed = {};
     element.timer = setInterval(() => {
+        let allCompleted = true;
         Object.keys(target).forEach(attr => {
-            let iSpeed = 0;  //步长
-            let status = false; //是否仍需运动
-            let iCurrent = attrStyle(attr) || 0; //当前元素属性址
-            let speedBase = 0; //目标点需要减去的基础值，三种运动状态的值都不同
-            let intervalTime; //将目标值分为多少步执行，数值越大，步长越小，运动时间越长
+            let iSpeed = 0;
+            let status = false;
+            let iCurrent = attrStyle(attr) || 0;
+            let speedBase = 0;
+            let intervalTime;
             switch(mode){
                 case 'ease-out': 
                     speedBase = iCurrent;
@@ -235,7 +240,6 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
                 iSpeed = (target[attr] - speedBase) / intervalTime;
                 iSpeed = iSpeed > 0 ? Math.ceil(iSpeed) : Math.floor(iSpeed);
             }
-            //判断是否达步长之内的误差距离，如果到达说明到达目标点
             switch(mode){
                 case 'ease-out': 
                     status = iCurrent != target[attr]; 
@@ -251,8 +255,7 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
             }
 
             if (status) {
-                flag = false; 
-                //opacity 和 scrollTop 需要特殊处理
+                allCompleted = false;
                 if (attr === "opacity") {
                     element.style.filter = "alpha(opacity:" + (iCurrent + iSpeed) + ")";
                     element.style.opacity = (iCurrent + iSpeed) / 100;
@@ -261,16 +264,14 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
                 }else{
                     element.style[attr] = iCurrent + iSpeed + 'px';
                 }
-            } else {
-                flag = true;
             }
-
-            if (flag) {
-                clearInterval(element.timer);
-                if (callback) {
-                    callback();
-                }
+        });
+        
+        if (allCompleted) {
+            clearInterval(element.timer);
+            if (callback) {
+                callback();
             }
-        })
+        }
     }, 20);
 }

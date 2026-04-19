@@ -1,24 +1,44 @@
 <template>
     <div class="visitorpie">
-        <div id="visitorpie" class="" style="width: 90%;height:450px;"></div>
+        <div id="visitorpie" ref="chart" style="width: 90%;height:450px;"></div>
     </div>
 </template>
 
 <script>
     import echarts from 'echarts/lib/echarts';
-    // 引入柱状图
     import 'echarts/lib/chart/pie';
     import 'echarts/lib/component/title';
     import 'echarts/lib/component/legend';
     
     export default {
         mounted(){
-            this.myChart = echarts.init(document.getElementById('visitorpie'));
-            this.initData();
+            this.$nextTick(() => {
+                this.myChart = echarts.init(this.$refs.chart);
+                this.initData();
+            });
         },
-        props: ['pieData'],
+        props: {
+            pieData: {
+                type: Object,
+                default: () => ({
+                    beijing: 0,
+                    shanghai: 0,
+                    shenzhen: 0,
+                    hangzhou: 0,
+                    qita: 0
+                })
+            }
+        },
         methods: {
             initData(){
+                const data = [
+                    {value: this.pieData.beijing || 0, name: '北京'},
+                    {value: this.pieData.shanghai || 0, name: '上海'},
+                    {value: this.pieData.shenzhen || 0, name: '深圳'},
+                    {value: this.pieData.hangzhou || 0, name: '杭州'},
+                    {value: this.pieData.qita || 0, name: '其他'}
+                ];
+                
                 const option = {
                     title : {
                         text: '用户分布',
@@ -40,13 +60,12 @@
                             type: 'pie',
                             radius : '55%',
                             center: ['50%', '60%'],
-                            data:[
-                                {value:this.pieData.beijing, name:'北京'},
-                                {value:this.pieData.shanghai, name:'上海'},
-                                {value:this.pieData.shenzhen, name:'深圳'},
-                                {value:this.pieData.hangzhou, name:'杭州'},
-                                {value:this.pieData.qita, name:'其他'}
-                            ],
+                            animationType: 'scale',
+                            animationEasing: 'elasticOut',
+                            animationDelay: function (idx) {
+                                return Math.random() * 200;
+                            },
+                            data: data,
                             itemStyle: {
                                 emphasis: {
                                     shadowBlur: 10,
@@ -58,12 +77,22 @@
                     ]
                 };
 
-                this.myChart.setOption(option);
+                this.myChart.setOption(option, true);
             }
         },
         watch: {
-            pieData: function (){
-                this.initData()
+            pieData: {
+                deep: true,
+                handler: function (){
+                    if (this.myChart) {
+                        this.initData();
+                    }
+                }
+            }
+        },
+        beforeDestroy() {
+            if (this.myChart) {
+                this.myChart.dispose();
             }
         }
     }
