@@ -5,7 +5,7 @@ export default async(url = '', data = {}, type = 'GET', method = 'fetch') => {
 	url = baseUrl + url;
 
 	if (type == 'GET') {
-		let dataStr = ''; //数据拼接字符串
+		let dataStr = '';
 		Object.keys(data).forEach(key => {
 			dataStr += key + '=' + data[key] + '&';
 		})
@@ -36,10 +36,14 @@ export default async(url = '', data = {}, type = 'GET', method = 'fetch') => {
 		
 		try {
 			const response = await fetch(url, requestConfig);
+			if (!response.ok) {
+				return { status: 0, message: 'Network response was not ok' };
+			}
 			const responseJson = await response.json();
 			return responseJson
 		} catch (error) {
-			throw new Error(error)
+			console.error('API request failed:', error);
+			return { status: 0, message: error.message || 'Request failed' };
 		}
 	} else {
 		return new Promise((resolve, reject) => {
@@ -68,7 +72,7 @@ export default async(url = '', data = {}, type = 'GET', method = 'fetch') => {
 						}
 						resolve(obj)
 					} else {
-						reject(requestObj)
+						resolve({ status: 0, message: 'Request failed with status: ' + requestObj.status });
 					}
 				}
 			}
