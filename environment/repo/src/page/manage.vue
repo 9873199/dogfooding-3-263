@@ -63,4 +63,23 @@
 	.manage_page{
 		
 	}
+	.el-menu {
+		overflow-x: hidden;
+		overflow-y: auto;
+	}
+	.el-submenu .el-menu {
+		position: relative;
+		left: 0 !important;
+		top: 0 !important;
+	}
+	.el-submenu__title {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.el-menu-item {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 </style>
