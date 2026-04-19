@@ -47,30 +47,33 @@ export const getStyle = (element, attr, NumberMode = 'int') => {
  */
 export const loadMore = (element, callback) => {
 	let windowHeight = window.screen.height;
-	let height;
-	let setTop;
-	let paddingBottom;
-	let marginBottom;
+	let height = element.offsetHeight || 0;
+	let setTop = element.offsetTop || 0;
+	let paddingBottom = getStyle(element,'paddingBottom') || 0;
+	let marginBottom = getStyle(element,'marginBottom') || 0;
     let requestFram;
     let oldScrollTop;
 
+    const checkLoadMore = () => {
+        if (document.body.scrollTop + windowHeight >= height + setTop + paddingBottom + marginBottom) {
+            callback();
+        }
+    }
+
     document.body.addEventListener('scroll',() => {
-       loadMore();
+       checkLoadMore();
     }, false)
-    //运动开始时获取元素 高度 和 offseTop, pading, margin
-	element.addEventListener('touchstart',() => {
+    element.addEventListener('touchstart',() => {
         height = element.offsetHeight;
         setTop = element.offsetTop;
         paddingBottom = getStyle(element,'paddingBottom');
         marginBottom = getStyle(element,'marginBottom');
     },{passive: true})
 
-    //运动过程中保持监听 scrollTop 的值判断是否到达底部
     element.addEventListener('touchmove',() => {
-       loadMore();
+       checkLoadMore();
     },{passive: true})
 
-    //运动结束时判断是否有惯性运动，惯性运动结束判断是非到达底部
     element.addEventListener('touchend',() => {
        	oldScrollTop = document.body.scrollTop;
        	moveEnd();
@@ -80,21 +83,14 @@ export const loadMore = (element, callback) => {
         requestFram = requestAnimationFrame(() => {
             if (document.body.scrollTop != oldScrollTop) {
                 oldScrollTop = document.body.scrollTop;
-                loadMore();
+                checkLoadMore();
                 moveEnd();
             }else{
             	cancelAnimationFrame(requestFram);
-            	//为了防止鼠标抬起时已经渲染好数据从而导致重获取数据，应该重新获取dom高度
             	height = element.offsetHeight;
-                loadMore();
+                checkLoadMore();
             }
         })
-    }
-
-    const loadMore = () => {
-        if (document.body.scrollTop + windowHeight >= height + setTop + paddingBottom + marginBottom) {
-            callback();
-        }
     }
 }
 
@@ -155,7 +151,6 @@ export const showBack = callback => {
 export const animate = (element, target, duration = 400, mode = 'ease-out', callback) => {
     clearInterval(element.timer);
 
-    //判断不同参数的情况
     if (duration instanceof Function) {
         callback = duration;
         duration = 400;
@@ -164,13 +159,11 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
         duration = 400;
     }
 
-    //判断不同参数的情况
     if (mode instanceof Function) {
         callback = mode;
         mode = 'ease-out';
     }
 
-    //获取dom样式
     const attrStyle = attr => {
         if (attr === "opacity") { 
             return Math.round(getStyle(element, attr, 'float') * 100);
@@ -178,13 +171,11 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
             return getStyle(element, attr);
         }
     }
-    //根字体大小，需要从此将 rem 改成 px 进行运算
     const rootSize = parseFloat(document.documentElement.style.fontSize);
 
     const unit = {};
     const initState = {};
 
-    //获取目标属性单位和初始样式值
     Object.keys(target).forEach(attr => {
         if (/[^\d^\.]+/gi.test(target[attr])) {
             unit[attr] = target[attr].match(/[^\d^\.]+/gi)[0] || 'px';
@@ -194,7 +185,6 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
         initState[attr] = attrStyle(attr);
     });
 
-    //去掉传入的后缀单位
     Object.keys(target).forEach(attr => {
         if (unit[attr] == 'rem') {
             target[attr] = Math.ceil(parseInt(target[attr])*rootSize);
@@ -203,16 +193,15 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
         }
     });
 
-
-    let flag = true; //假设所有运动到达终点
-    const remberSpeed = {};//记录上一个速度值,在ease-in模式下需要用到
+    const remberSpeed = {};
     element.timer = setInterval(() => {
+        let allCompleted = true;
         Object.keys(target).forEach(attr => {
-            let iSpeed = 0;  //步长
-            let status = false; //是否仍需运动
-            let iCurrent = attrStyle(attr) || 0; //当前元素属性址
-            let speedBase = 0; //目标点需要减去的基础值，三种运动状态的值都不同
-            let intervalTime; //将目标值分为多少步执行，数值越大，步长越小，运动时间越长
+            let iSpeed = 0;
+            let status = false;
+            let iCurrent = attrStyle(attr) || 0;
+            let speedBase = 0;
+            let intervalTime;
             switch(mode){
                 case 'ease-out': 
                     speedBase = iCurrent;
@@ -225,7 +214,7 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
                 case 'ease-in':
                     let oldspeed = remberSpeed[attr] || 0;
                     iSpeed = oldspeed + (target[attr] - initState[attr])/duration;
-                    remberSpeed[attr] = iSpeed
+                    remberSpeed[attr] = iSpeed;
                     break;
                 default:
                     speedBase = iCurrent;
@@ -235,7 +224,6 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
                 iSpeed = (target[attr] - speedBase) / intervalTime;
                 iSpeed = iSpeed > 0 ? Math.ceil(iSpeed) : Math.floor(iSpeed);
             }
-            //判断是否达步长之内的误差距离，如果到达说明到达目标点
             switch(mode){
                 case 'ease-out': 
                     status = iCurrent != target[attr]; 
@@ -251,8 +239,7 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
             }
 
             if (status) {
-                flag = false; 
-                //opacity 和 scrollTop 需要特殊处理
+                allCompleted = false;
                 if (attr === "opacity") {
                     element.style.filter = "alpha(opacity:" + (iCurrent + iSpeed) + ")";
                     element.style.opacity = (iCurrent + iSpeed) / 100;
@@ -262,15 +249,22 @@ export const animate = (element, target, duration = 400, mode = 'ease-out', call
                     element.style[attr] = iCurrent + iSpeed + 'px';
                 }
             } else {
-                flag = true;
-            }
-
-            if (flag) {
-                clearInterval(element.timer);
-                if (callback) {
-                    callback();
+                if (attr === "opacity") {
+                    element.style.filter = "alpha(opacity:" + target[attr] + ")";
+                    element.style.opacity = target[attr] / 100;
+                } else if (attr === 'scrollTop') {
+                    element.scrollTop = target[attr];
+                }else{
+                    element.style[attr] = target[attr] + 'px';
                 }
             }
-        })
+        });
+
+        if (allCompleted) {
+            clearInterval(element.timer);
+            if (callback) {
+                callback();
+            }
+        }
     }, 20);
 }
